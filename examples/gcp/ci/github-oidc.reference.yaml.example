@@ -1,0 +1,24 @@
+# Template inativo fora de .github/workflows; não foi executado.
+# O pool/provider WIF, as condições de claims e a SA de CI precisam existir.
+# Revisar e fixar actions por SHA aprovado antes de qualquer habilitação.
+name: GCP OIDC reference disabled
+on:
+  workflow_dispatch:
+jobs:
+  identity_reference:
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          cleanup_credentials: true
+      # Sem build, push, terraform init/plan/apply ou deploy neste template.

@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+.git
+.env
+gha-creds-*.json
+terraform
+tests
+test-results.json
+test-output.txt
+manifest.json
+static-checks.json

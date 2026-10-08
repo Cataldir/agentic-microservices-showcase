@@ -1,0 +1,239 @@
+{
+  "resource": {
+    "google_service_account": {
+      "runtime": {
+        "project": "${var.project_id}",
+        "account_id": "${var.prefix}-runtime",
+        "display_name": "Agentic example runtime"
+      },
+      "publisher": {
+        "project": "${var.project_id}",
+        "account_id": "${var.prefix}-publisher",
+        "display_name": "Agentic example publisher"
+      },
+      "consumer": {
+        "project": "${var.project_id}",
+        "account_id": "${var.prefix}-consumer",
+        "display_name": "Agentic example consumer"
+      },
+      "inspector": {
+        "project": "${var.project_id}",
+        "account_id": "${var.prefix}-inspector",
+        "display_name": "Agentic example inspector"
+      }
+    },
+    "google_project_iam_custom_role": {
+      "generate_text": {
+        "project": "${var.project_id}",
+        "role_id": "${replace(var.prefix, \"-\", \"_\")}_generate_text",
+        "title": "Generate model text only",
+        "permissions": [
+          "aiplatform.endpoints.predict"
+        ]
+      }
+    },
+    "google_project_iam_member": {
+      "runtime_generate": {
+        "project": "${var.project_id}",
+        "role": "${google_project_iam_custom_role.generate_text.name}",
+        "member": "serviceAccount:${google_service_account.runtime.email}"
+      }
+    },
+    "google_artifact_registry_repository": {
+      "images": {
+        "project": "${var.project_id}",
+        "location": "${var.region}",
+        "repository_id": "${var.prefix}-images",
+        "format": "DOCKER",
+        "description": "Imagens de referência; conteúdo fornecido por processo separado."
+      }
+    },
+    "google_secret_manager_secret": {
+      "business_config": {
+        "project": "${var.project_id}",
+        "secret_id": "${var.prefix}-business-config",
+        "replication": {
+          "user_managed": {
+            "replicas": [
+              {
+                "location": "${var.region}"
+              }
+            ]
+          }
+        },
+        "labels": {
+          "purpose": "reference-metadata-only"
+        }
+      }
+    },
+    "google_pubsub_topic": {
+      "tasks": {
+        "project": "${var.project_id}",
+        "name": "${var.prefix}-tasks",
+        "message_retention_duration": "604800s"
+      },
+      "dead_letters": {
+        "project": "${var.project_id}",
+        "name": "${var.prefix}-dead-letters",
+        "message_retention_duration": "604800s"
+      }
+    },
+    "google_pubsub_topic_iam_member": {
+      "service_agent_dlq_publish": {
+        "project": "${var.project_id}",
+        "topic": "${google_pubsub_topic.dead_letters.name}",
+        "role": "roles/pubsub.publisher",
+        "member": "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+      },
+      "app_publish": {
+        "project": "${var.project_id}",
+        "topic": "${google_pubsub_topic.tasks.name}",
+        "role": "roles/pubsub.publisher",
+        "member": "serviceAccount:${google_service_account.publisher.email}"
+      }
+    },
+    "google_pubsub_subscription": {
+      "tasks": {
+        "project": "${var.project_id}",
+        "name": "${var.prefix}-tasks-pull",
+        "topic": "${google_pubsub_topic.tasks.id}",
+        "ack_deadline_seconds": 60,
+        "message_retention_duration": "604800s",
+        "retain_acked_messages": true,
+        "enable_exactly_once_delivery": false,
+        "enable_message_ordering": false,
+        "expiration_policy": {
+          "ttl": ""
+        },
+        "retry_policy": {
+          "minimum_backoff": "10s",
+          "maximum_backoff": "600s"
+        },
+        "dead_letter_policy": {
+          "dead_letter_topic": "${google_pubsub_topic.dead_letters.id}",
+          "max_delivery_attempts": 10
+        },
+        "depends_on": [
+          "google_pubsub_topic_iam_member.service_agent_dlq_publish"
+        ]
+      },
+      "dead_letters": {
+        "project": "${var.project_id}",
+        "name": "${var.prefix}-dead-letters-inspection",
+        "topic": "${google_pubsub_topic.dead_letters.id}",
+        "ack_deadline_seconds": 60,
+        "message_retention_duration": "604800s",
+        "expiration_policy": {
+          "ttl": ""
+        }
+      }
+    },
+    "google_pubsub_subscription_iam_member": {
+      "service_agent_source_ack": {
+        "project": "${var.project_id}",
+        "subscription": "${google_pubsub_subscription.tasks.name}",
+        "role": "roles/pubsub.subscriber",
+        "member": "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+      },
+      "app_consume": {
+        "project": "${var.project_id}",
+        "subscription": "${google_pubsub_subscription.tasks.name}",
+        "role": "roles/pubsub.subscriber",
+        "member": "serviceAccount:${google_service_account.consumer.email}"
+      },
+      "dlq_inspect": {
+        "project": "${var.project_id}",
+        "subscription": "${google_pubsub_subscription.dead_letters.name}",
+        "role": "roles/pubsub.subscriber",
+        "member": "serviceAccount:${google_service_account.inspector.email}"
+      }
+    },
+    "google_cloud_run_v2_service": {
+      "http": {
+        "count": "${var.enable_runtime ? 1 : 0}",
+        "project": "${var.project_id}",
+        "name": "${var.prefix}-http",
+        "location": "${var.region}",
+        "deletion_protection": true,
+        "ingress": "INGRESS_TRAFFIC_INTERNAL_ONLY",
+        "template": {
+          "service_account": "${google_service_account.runtime.email}",
+          "timeout": "60s",
+          "max_instance_request_concurrency": 1,
+          "scaling": {
+            "min_instance_count": 0,
+            "max_instance_count": 2
+          },
+          "containers": [
+            {
+              "image": "${var.container_image}",
+              "ports": {
+                "container_port": 8080
+              },
+              "resources": {
+                "limits": {
+                  "cpu": "1",
+                  "memory": "512Mi"
+                }
+              },
+              "env": [
+                {
+                  "name": "GOOGLE_CLOUD_PROJECT",
+                  "value": "${var.project_id}"
+                },
+                {
+                  "name": "GOOGLE_CLOUD_LOCATION",
+                  "value": "${var.inference_location}"
+                },
+                {
+                  "name": "GOOGLE_GENAI_MODEL",
+                  "value": "${var.inference_model}"
+                },
+                {
+                  "name": "GOOGLE_GENAI_USE_ENTERPRISE",
+                  "value": "true"
+                }
+              ]
+            }
+          ]
+        },
+        "lifecycle": {
+          "precondition": [
+            {
+              "condition": "${can(regex(\"^${var.region}-docker[.]pkg[.]dev/${var.project_id}/${var.prefix}-images/[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*@sha256:[0-9a-f]{64}$\", var.container_image))}",
+              "error_message": "Runtime exige URI por digest no repositório esperado; existência da imagem é pré-condição externa."
+            },
+            {
+              "condition": "${can(regex(\"^(global|[a-z][a-z0-9]*(-[a-z0-9]+)+)$\", var.inference_location)) && can(regex(\"^[A-Za-z0-9][A-Za-z0-9._-]*$\", var.inference_model))}",
+              "error_message": "Defina modelo e localização; disponibilidade/modelo/região não é validada pelo Terraform."
+            }
+          ]
+        },
+        "depends_on": [
+          "google_project_iam_member.runtime_generate",
+          "google_artifact_registry_repository.images"
+        ]
+      }
+    }
+  },
+  "output": {
+    "runtime_uri": {
+      "value": "${var.enable_runtime ? google_cloud_run_v2_service.http[0].uri : null}"
+    },
+    "runtime_service_account": {
+      "value": "${google_service_account.runtime.email}"
+    },
+    "registry": {
+      "value": "${google_artifact_registry_repository.images.id}"
+    },
+    "tasks_subscription": {
+      "value": "${google_pubsub_subscription.tasks.id}"
+    },
+    "dead_letters_subscription": {
+      "value": "${google_pubsub_subscription.dead_letters.id}"
+    },
+    "secret_metadata": {
+      "value": "${google_secret_manager_secret.business_config.id}"
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "variable": {
+    "project_id": {
+      "type": "string",
+      "description": "Projeto existente; nenhuma conta/projeto é criado.",
+      "validation": {
+        "condition": "${can(regex(\"^[a-z][a-z0-9-]{4,28}[a-z0-9]$\", var.project_id))}",
+        "error_message": "Formato inválido para project_id."
+      }
+    },
+    "project_number": {
+      "type": "string",
+      "description": "Número do projeto existente da assinatura Pub/Sub; service agent já disponível.",
+      "validation": {
+        "condition": "${can(regex(\"^[0-9]+$\", var.project_number))}",
+        "error_message": "Formato inválido para project_number."
+      }
+    },
+    "region": {
+      "type": "string",
+      "default": "us-central1",
+      "description": "Região Cloud Run/Artifact Registry; verificar política organizacional.",
+      "validation": {
+        "condition": "${can(regex(\"^[a-z][a-z0-9]*(-[a-z0-9]+)+$\", var.region))}",
+        "error_message": "Formato inválido para region."
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "default": "agentic-demo",
+      "validation": {
+        "condition": "${can(regex(\"^[a-z][a-z0-9-]{1,16}[a-z0-9]$\", var.prefix))}",
+        "error_message": "Formato inválido para prefix."
+      }
+    },
+    "enable_runtime": {
+      "type": "bool",
+      "default": false,
+      "description": "False prepara somente definições base; True exige imagem já publicada por processo autorizado."
+    },
+    "container_image": {
+      "type": "string",
+      "default": "",
+      "description": "Imagem por digest no repositório desta configuração; não há build/push no Terraform."
+    },
+    "inference_location": {
+      "type": "string",
+      "default": "",
+      "description": "Localização do modelo: entrada independente da região Cloud Run."
+    },
+    "inference_model": {
+      "type": "string",
+      "default": "",
+      "description": "ID real para o alias reasoning; escolha/região precisam ser conferidas pelo operador."
+    }
+  }
+}

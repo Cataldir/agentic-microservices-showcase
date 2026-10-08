@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.terraform/
+*.tfstate*
+*.tfplan
+terraform.tfvars
+.env
+test-results.json
+test-output.txt
+manifest.json
+static-checks.json
+gha-creds-*.json

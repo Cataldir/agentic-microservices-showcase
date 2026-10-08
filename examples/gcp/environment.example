@@ -1,0 +1,5 @@
+# Valores ilustrativos, sem credenciais. Modelo/local precisam ser compatíveis.
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_LOCATION=us-central1
+GOOGLE_GENAI_MODEL=SET_MODEL_ID
+PORT=8080

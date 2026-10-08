@@ -1,0 +1,2 @@
+# Versão oficial consultada em 2026-10-08; não instalada nesta revisão.
+google-genai==2.29.0
